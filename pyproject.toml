@@ -1,0 +1,99 @@
+[project]
+name = "src"
+version = "0.0.1"
+description = "ITMO BlockChain Project"
+authors = [
+    { name = "Sergey Yurpalov", email = "" },
+    { name = "Ilia Khrustalev", email = "" },
+]
+requires-python = "==3.13.*"
+dependencies = [
+    "ipykernel>=6.29.5",
+    "matplotlib>=3.10.1",
+    "numpy>=2.2.4",
+    "pandas>=2.2.3",
+    "polars>=1.27.1",
+    "pyarrow>=19.0.1",
+    "requests>=2.32.3",
+    "scikit-learn>=1.6.1",
+    "seaborn>=0.13.2",
+    "torch>=2.6.0",
+    "torchvision>=0.21.0",
+    "tqdm>=4.67.1",
+    "types-requests>=2.32.0.20250328",
+]
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[[tool.uv.index]]
+name = "pytorch-cu124"
+url = "https://download.pytorch.org/whl/cu124"
+explicit = true
+
+[tool.uv.sources]
+torch = [
+    { index = "pytorch-cu124" },
+]
+torchvision = [
+    { index = "pytorch-cu124" },
+]
+
+[tool.uv]
+dev-dependencies = [
+    "pytest==8.3.5",
+    "pytest-cov==6.0.0",
+    "pytest-asyncio==0.25.3",
+    "mypy==1.15.0",
+    "flake8==7.1.2",
+    "tox==4.24.2",
+    "flake8-pyproject==1.2.3",
+    "isort==6.0.1",
+    "black==25.1.0",
+]
+
+[tool.pytest.ini_options]
+addopts = "--cov=src"
+testpaths = ["tests"]
+markers = ["skip_tox"]
+
+[tool.coverage.run]
+omit = [
+    "*/enums/*",
+    "*/entities/*",
+    "*/custom_typing/*",
+    "__init__.py"
+]
+
+[tool.coverage.report]
+exclude_also = [
+    "def __repr__",
+    "def __str__",
+    "raise AssertionError",
+    "raise NotImplementedError",
+    "@(abc\\.)?abstractmethod"
+]
+ignore_errors = true
+
+[tool.mypy]
+mypy_path = "src"
+check_untyped_defs = true
+disallow_any_generics = true
+ignore_missing_imports = true
+no_implicit_optional = true
+show_error_codes = true
+strict_equality = true
+warn_redundant_casts = true
+warn_return_any = true
+warn_unreachable = true
+warn_unused_configs = true
+no_implicit_reexport = true
+
+[tool.flake8]
+ignore = ['E231', 'E241']
+per-file-ignores = [
+    '__init__.py:F401',
+]
+max-line-length = 120
+count = true
