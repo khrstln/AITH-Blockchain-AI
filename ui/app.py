@@ -1,13 +1,15 @@
-import streamlit as st
+import time
+from datetime import datetime, timedelta
+from pathlib import Path
+
+import joblib
+import numpy as np
+import plotly.graph_objects as go
 import polars as pl
-import matplotlib.pyplot as plt
+import streamlit as st
 import torch
 import torch.nn as nn
-from torch.utils.data import Dataset, DataLoader
-import numpy as np
-import time
-import pyarrow.parquet as pq
-
+from torch.utils.data import DataLoader, Dataset
 
 INPUT_SIZE = 13
 HIDDEN_SIZE = INPUT_SIZE * 4
@@ -18,6 +20,11 @@ PREDICT_HORIZON = 50
 BATCH_SIZE = 1
 
 DEVICE = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+SCALER = joblib.load(r"models\tx_scaler.pkl")
+NUMERIC_COLS = ["cost", "gas", "gas_fee_cap", "gas_price"]
+GAS_INDEX = NUMERIC_COLS.index("gas_price")
+CENTER = SCALER.center_[GAS_INDEX]
+SCALE = SCALER.scale_[GAS_INDEX]
 
 
 class BasicBiLSTM(nn.Module):
@@ -101,27 +108,36 @@ while True:
         df_to_predict = df.slice(i, SEQUENCE_LENGTH + PREDICT_HORIZON)
         dataset = SequenceDataset(df_to_predict, SEQUENCE_LENGTH, "gas_price")
         dataloader = DataLoader(dataset, batch_size=BATCH_SIZE, shuffle=False)
-        preds = predict_future(model, dataloader, DEVICE)
+        preds = predict_future(model, dataloader, DEVICE).flatten()
+        preds_unscaled = preds * SCALE + CENTER
 
-        preds = np.array(preds)
+        start_time = datetime.now()
+        timestamps = [start_time + timedelta(seconds=j) for j in range(len(preds))]
 
-        xticks = ["" for _ in range(0, SEQUENCE_LENGTH + 1, 5)]
-        for i in range(1, SEQUENCE_LENGTH // 5 + 1):
-            xticks[i] = f"{i} сек"
+        fig = go.Figure(
+            go.Scatter(
+                x=timestamps,
+                y=preds_unscaled,
+                mode="lines+markers",
+                line=dict(color="#FF9900", width=2),
+                marker=dict(color="#FF9900", size=6, line=dict(color="white", width=0.5)),
+                name="Gas price",
+            )
+        )
 
-        xticks[0] = "Now"
+        fig.update_layout(
+            title="",
+            xaxis_title="Время",
+            yaxis_title="Gas price",
+            template="plotly_dark",
+            paper_bgcolor="black",
+            plot_bgcolor="black",
+            font_color="white",
+            xaxis=dict(gridcolor="gray", tickformat="%H:%M:%S"),
+            yaxis=dict(gridcolor="gray"),
+            margin=dict(l=40, r=40, t=60, b=40),
+        )
 
-        fig, ax = plt.subplots()
-        ax.plot(preds, label="Gas price")
-        ax.set_title("Прогноз Gas price на ближайшие 10 секунд")
-        ax.set_xlabel("Время")
-        ax.set_ylabel("Значение Gas price")
-        ax.set_xticks(range(0, SEQUENCE_LENGTH + 1, 5))
-        ax.set_xticklabels(xticks, rotation=-45)
-        ax.legend()
-
-        chart_placeholder.pyplot(fig)
-
-        time.sleep(0.5)
-
+        chart_placeholder.plotly_chart(fig, use_container_width=True)
+        time.sleep(1)
     time.sleep(2)
